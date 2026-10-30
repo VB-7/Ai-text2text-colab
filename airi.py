@@ -582,3 +582,80 @@ def launch_ui():
         print("Butuh IPython/Colab untuk wajah.")
         return
     display(HTML(_UI_HTML))
+
+
+_MODEL_LABELS = [
+    ("Gemma 12B", "gemma12b"),
+    ("Gemma E4B", "gemma_e4b"),
+    ("Gemma E2B", "gemma_e2b"),
+    ("Qwen 9B", "qwen9b"),
+    ("Qwen 4B", "qwen4b"),
+    ("Qwen 2B", "qwen2b"),
+]
+
+
+def _gradio_history():
+    out = []
+    for m in CHAT_HISTORY:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role", "")
+        if role not in ("user", "assistant"):
+            continue
+        out.append({"role": role, "content": content_to_text(m.get("content", ""))})
+    return out
+
+
+def launch_gradio(share=False):
+    """Wajah Gradio — responsif di HP. Ganti model via dropdown, kirim teks + gambar."""
+    import gradio as gr
+    register_colab_callbacks()
+    with gr.Blocks(title="Airi") as demo:
+        gr.Markdown("# Airi")
+        with gr.Row():
+            model_dd = gr.Dropdown(choices=_MODEL_LABELS, value=ACTIVE_MODEL, label="Model")
+            clear_btn = gr.Button("Hapus riwayat", variant="stop")
+        status_md = gr.Markdown(f"Model aktif: **{ACTIVE_MODEL}**")
+        chat = gr.Chatbot(value=_gradio_history(), label="Chat", height=500, render_markdown=True)
+        with gr.Row():
+            msg = gr.MultimodalTextbox(placeholder="Ketik pesan...",
+                                       file_count="multiple", file_types=["image"], scale=7)
+            send_btn = gr.Button("Kirim", variant="primary", scale=1)
+
+        def _switch(name):
+            init_models(name)
+            return f"Model aktif: **{name}**"
+
+        def _respond(data, hist):
+            txt = ""
+            files = []
+            if isinstance(data, dict):
+                txt = data.get("text", "") or ""
+                files = data.get("files", []) or []
+            else:
+                txt = str(data or "")
+            if not txt and not files:
+                yield data, hist or []
+                return
+            hist = (hist or []) + [{"role": "user", "content": txt or "(gambar)"}]
+            hist.append({"role": "assistant", "content": "mengetik..."})
+            yield {"text": "", "files": []}, hist
+            try:
+                for partial in airi_stream(txt, list(files)):
+                    hist[-1]["content"] = partial
+                    yield {"text": "", "files": []}, hist
+            except Exception as e:
+                hist[-1]["content"] = f"[gagal: {e}]"
+                yield {"text": "", "files": []}, hist
+
+        def _clear():
+            clear_history()
+            return []
+
+        model_dd.change(fn=_switch, inputs=model_dd, outputs=status_md)
+        send_btn.click(fn=_respond, inputs=[msg, chat], outputs=[msg, chat])
+        msg.submit(fn=_respond, inputs=[msg, chat], outputs=[msg, chat])
+        clear_btn.click(fn=_clear, outputs=chat)
+        demo.queue()
+    demo.launch(share=share)
+    return demo

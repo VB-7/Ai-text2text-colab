@@ -18,6 +18,7 @@ dependencies = [
   "psutil>=5.9",
   "markdown>=3.5",
   "bleach>=6.0",
+  "gradio>=5",
 ]
 
 [tool.setuptools]
