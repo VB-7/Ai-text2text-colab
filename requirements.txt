@@ -1,0 +1,9 @@
+huggingface_hub>=0.23
+transformers>=4.40
+llama-cpp-python>=0.3
+Pillow>=10
+numpy>=1.26
+torch>=2.2
+psutil>=5.9
+markdown>=3.5
+bleach>=6.0
