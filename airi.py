@@ -231,30 +231,6 @@ def content_to_text(c):
     return str(c)
 
 
-_MD_TAGS = ["p", "br", "b", "strong", "i", "em", "code", "pre",
-             "ul", "ol", "li", "h1", "h2", "h3", "h4",
-             "blockquote", "table", "thead", "tbody", "tr", "th", "td", "hr", "a"]
-_MD_ATTRS = {"a": ["href", "title"]}
-
-
-def render_md(text):
-    s = text if isinstance(text, str) else content_to_text(text)
-    try:
-        import markdown as _mdlib
-        import bleach as _bleach
-    except Exception:
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
-    try:
-        html = _mdlib.markdown(s or "", extensions=["fenced_code", "tables", "sane_lists"])
-        return _bleach.clean(html, tags=_MD_TAGS, attributes=_MD_ATTRS, strip=True)
-    except Exception:
-        return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
-
-
-def render_many(texts):
-    return [render_md(t) for t in (texts or [])]
-
-
 def img_to_part(img_in):
     if isinstance(img_in, dict):
         img_in = img_in.get("data") or img_in.get("path") or ""
@@ -347,6 +323,17 @@ def get_prompt():
     return "Kamu adalah Airi, asisten riset pintar."
 
 
+def _clean_path(f):
+    if isinstance(f, dict):
+        return f.get("path") or f.get("name") or ""
+    if hasattr(f, "path"):
+        try:
+            return f.path
+        except Exception:
+            return ""
+    return f if isinstance(f, str) else ""
+
+
 def build_msgs(hist, txt, imgs, sys):
     base = [{"role": "system", "content": sys}]
     win = hist[-20:] if len(hist) > 20 else hist
@@ -356,8 +343,15 @@ def build_msgs(hist, txt, imgs, sys):
             cc = m.get("content", "")
             if isinstance(cc, list):
                 for x in cc:
-                    if x.get("type") == "text":
+                    if not isinstance(x, dict):
+                        continue
+                    t = x.get("type")
+                    if t == "text":
                         parts.append({"type": "text", "text": x.get("text", "")})
+                    elif t == "file":
+                        parts.append(img_to_part(_clean_path(x.get("file", {}))))
+                    elif t == "image_url":
+                        parts.append(x)
             else:
                 parts.append({"type": "text", "text": content_to_text(cc)})
             base.append({"role": "user", "content": parts})
@@ -370,6 +364,19 @@ def build_msgs(hist, txt, imgs, sys):
         cur.append(img_to_part(im))
     base.append({"role": "user", "content": cur})
     return base
+
+
+def _user_content(text, images):
+    out = []
+    if text:
+        out.append({"type": "text", "text": text})
+    for im in (images or []):
+        p = _clean_path(im)
+        if isinstance(p, str) and p.startswith("data:image"):
+            out.append({"type": "image_url", "image_url": {"url": p}})
+        elif p and os.path.exists(p):
+            out.append({"type": "file", "file": {"path": p}})
+    return out
 
 
 def airi(text, images=None):
@@ -385,7 +392,7 @@ def airi(text, images=None):
         out = r["choices"][0]["message"]["content"]
     except Exception as e:
         return f"[❌ {e}]"
-    CHAT_HISTORY.append({"role": "user", "content": [{"type": "text", "text": text or ""}]})
+    CHAT_HISTORY.append({"role": "user", "content": _user_content(text, images)})
     v = get_vec(text) if text else None
     if v is not None:
         CHAT_HISTORY[-1]["vector"] = v
@@ -409,7 +416,7 @@ def airi_stream(text, images=None):
             if d:
                 full += d
                 yield full
-        CHAT_HISTORY.append({"role": "user", "content": [{"type": "text", "text": text or ""}]})
+        CHAT_HISTORY.append({"role": "user", "content": _user_content(text, images)})
         v = get_vec(text) if text else None
         if v is not None:
             CHAT_HISTORY[-1]["vector"] = v
@@ -430,160 +437,6 @@ def clear_history():
     return []
 
 
-def register_colab_callbacks():
-    try:
-        from google.colab import output as _o
-        _o.register_callback('airi.chat', lambda d: airi((d or {}).get('text', ''), (d or {}).get('images', [])))
-        _o.register_callback('airi.history', lambda: get_history())
-        _o.register_callback('airi.history_simple', lambda: [
-            {"role": m.get("role", ""), "text": content_to_text(m.get("content", ""))}
-            for m in CHAT_HISTORY if isinstance(m, dict)
-        ])
-        _o.register_callback('airi.clear', lambda: clear_history())
-        _o.register_callback('airi.init', lambda d: init_models((d or {}).get('name', 'gemma12b')))
-        _o.register_callback('airi.render', lambda t: render_md(t if isinstance(t, str) else ""))
-        _o.register_callback('airi.render_many', lambda lst: render_many(lst if isinstance(lst, list) else []))
-    except Exception:
-        pass
-
-
-_UI_HTML = """
-<style>
-#airi-log pre{background:#0a0d13;border:1px solid #2c3a55;border-radius:8px;padding:8px;overflow:auto}
-#airi-log code{background:#0a0d13;padding:1px 5px;border-radius:5px}
-#airi-log pre code{background:none;padding:0}
-#airi-log table{border-collapse:collapse;width:100%;margin:6px 0}
-#airi-log th,#airi-log td{border:1px solid #2c3a55;padding:4px 8px;text-align:left}
-#airi-log ul,#airi-log ol{margin:4px 0;padding-left:22px}
-#airi-log h1,#airi-log h2,#airi-log h3,#airi-log h4{margin:6px 0 4px}
-#airi-log p{margin:4px 0}
-#airi-log a{color:#7cc4ff}
-</style>
-<div id="airi-ui" style="font-family:system-ui;background:#0b0e14;color:#e8ecf3;border:1px solid #222a3a;border-radius:14px;padding:12px;width:100%;max-width:100%;box-sizing:border-box;font-size:16px">
-<div style="display:flex;gap:8px;margin-bottom:8px">
-<select id="airi-model" style="flex:1;min-height:48px;font-size:16px;background:#162032;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px">
-<option value="gemma12b">Gemma 12B</option>
-<option value="gemma_e4b">Gemma E4B</option>
-<option value="gemma_e2b">Gemma E2B</option>
-<option value="qwen9b">Qwen 9B</option>
-<option value="qwen4b">Qwen 4B</option>
-<option value="qwen2b">Qwen 2B</option>
-</select>
-<button id="airi-clear" style="min-height:48px;font-size:16px;background:#3a1620;color:#fff;border:1px solid #5a2c3a;border-radius:10px;padding:8px 12px">Hapus</button>
-</div>
-<div id="airi-status" style="font-size:14px;color:#9aa6bd;margin-bottom:8px">siap</div>
-<div id="airi-log" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;min-height:300px;overflow:auto;margin-bottom:8px"></div>
-<div id="airi-thumbs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
-<div style="display:flex;gap:8px">
-<input id="airi-file" type="file" accept="image/*" multiple style="display:none">
-<button id="airi-imgbtn" style="min-height:48px;font-size:16px;background:#162032;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px 12px">Gambar</button>
-<input id="airi-text" placeholder="Ketik pesan..." style="flex:1;min-width:0;min-height:48px;font-size:16px;background:#0f1522;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px">
-<button id="airi-send" style="min-height:48px;font-size:16px;background:#2563eb;color:#fff;border:0;border-radius:10px;padding:8px 16px;font-weight:600">Kirim</button>
-</div>
-</div>
-<script>
-(function(){
-if(window._airiBound) return; window._airiBound = true;
-var pendingImages = [];
-function esc(s){
-  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-}
-function bubble(role, html){
-  var log = document.getElementById('airi-log');
-  var d = document.createElement('div');
-  d.style.cssText = role === 'user'
-    ? 'align-self:flex-end;background:#2563eb;color:#fff;border-radius:12px;padding:10px 14px;max-width:92%;word-break:break-word;font-size:16px'
-    : 'align-self:flex-start;background:#162032;color:#e8ecf3;border:1px solid #2c3a55;border-radius:12px;padding:10px 14px;max-width:92%;word-break:break-word;font-size:16px';
-  d.innerHTML = html;
-  log.appendChild(d); log.scrollTop = log.scrollHeight;
-  return d;
-}
-function valOf(res){
-  if(!res || !res.data) return '';
-  if(typeof res.data['text/plain'] === 'string') return res.data['text/plain'];
-  if(res.data['application/json'] !== undefined) return res.data['application/json'];
-  return '';
-}
-async function loadHist(){
-  try{
-    var r = await google.colab.kernel.invokeFunction('airi.history_simple', [], {});
-    var h = valOf(r) || [];
-    if(typeof h === 'string'){ try{ h = JSON.parse(h); }catch(e){ h = []; } }
-    var texts = h.map(function(m){ return m.text || ''; });
-    var r2 = await google.colab.kernel.invokeFunction('airi.render_many', [texts], {});
-    var htmls = valOf(r2) || [];
-    if(typeof htmls === 'string'){ try{ htmls = JSON.parse(htmls); }catch(e){ htmls = []; } }
-    h.forEach(function(m, i){ bubble(m.role, htmls[i] || esc(m.text)); });
-  }catch(e){}
-}
-document.getElementById('airi-imgbtn').onclick = function(){ document.getElementById('airi-file').click(); };
-document.getElementById('airi-file').onchange = function(e){
-  Array.prototype.forEach.call(e.target.files, function(f){
-    var rd = new FileReader();
-    rd.onload = function(){
-      pendingImages.push(rd.result);
-      var im = document.createElement('img');
-      im.src = rd.result;
-      im.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #2c3a55';
-      document.getElementById('airi-thumbs').appendChild(im);
-    };
-    rd.readAsDataURL(f);
-  });
-  e.target.value = '';
-};
-document.getElementById('airi-clear').onclick = async function(){
-  await google.colab.kernel.invokeFunction('airi.clear', [], {});
-  document.getElementById('airi-log').innerHTML = '';
-};
-document.getElementById('airi-model').onchange = async function(e){
-  var st = document.getElementById('airi-status');
-  st.textContent = 'ganti model: ' + e.target.value + ' ...';
-  await google.colab.kernel.invokeFunction('airi.init', [{name: e.target.value}], {});
-  st.textContent = 'model: ' + e.target.value;
-};
-async function send(){
-  var inp = document.getElementById('airi-text');
-  var txt = inp.value; if(!txt && !pendingImages.length) return;
-  inp.value = '';
-  bubble('user', esc(txt || '(gambar)'));
-  document.getElementById('airi-thumbs').innerHTML = '';
-  var imgs = pendingImages; pendingImages = [];
-  var wait = bubble('assistant', esc('mengetik...'));
-  try{
-    var r = await google.colab.kernel.invokeFunction('airi.chat', [{text: txt, images: imgs}], {});
-    var out = valOf(r);
-    if(typeof out !== 'string') out = JSON.stringify(out);
-    var i = 0;
-    var timer = setInterval(function(){
-      i += 6; wait.innerHTML = esc(out.slice(0, i));
-      document.getElementById('airi-log').scrollTop = 99999;
-      if(i < out.length) return;
-      clearInterval(timer);
-      google.colab.kernel.invokeFunction('airi.render', [out], {}).then(function(r2){
-        var html = valOf(r2);
-        wait.innerHTML = (typeof html === 'string' && html) ? html : esc(out);
-      }).catch(function(){ wait.innerHTML = esc(out); });
-    }, 20);
-  }catch(e){ wait.textContent = '[gagal: ' + e + ']'; }
-}
-document.getElementById('airi-send').onclick = send;
-document.getElementById('airi-text').onkeydown = function(e){ if(e.key === 'Enter') send(); };
-loadHist();
-})();
-</script>
-"""
-
-
-def launch_ui():
-    register_colab_callbacks()
-    try:
-        from IPython.display import display, HTML
-    except Exception:
-        print("Butuh IPython/Colab untuk wajah.")
-        return
-    display(HTML(_UI_HTML))
-
-
 _MODEL_LABELS = [
     ("Gemma 12B", "gemma12b"),
     ("Gemma E4B", "gemma_e4b"),
@@ -602,14 +455,13 @@ def _gradio_history():
         role = m.get("role", "")
         if role not in ("user", "assistant"):
             continue
-        out.append({"role": role, "content": content_to_text(m.get("content", ""))})
+        out.append({"role": role, "content": m.get("content", "")})
     return out
 
 
 def launch_gradio(share=False):
     """Wajah Gradio — responsif di HP. Ganti model via dropdown, kirim teks + gambar."""
     import gradio as gr
-    register_colab_callbacks()
     with gr.Blocks(title="Airi") as demo:
         gr.Markdown("# Airi")
         with gr.Row():
@@ -638,7 +490,7 @@ def launch_gradio(share=False):
                 yield data, hist or []
                 return
             hist = (hist or []) + [{"role": "user", "content": txt or "(gambar)"}]
-            hist.append({"role": "assistant", "content": "mengetik..."})
+            hist.append({"role": "assistant", "content": "⏳ Airi sedang berpikir..."})
             yield {"text": "", "files": []}, hist
             try:
                 for partial in airi_stream(txt, list(files)):
