@@ -5,19 +5,17 @@ Upload isi folder `v2/` ini sebagai repo GitHub (root repo = folder ini).
 ## Pakai di Colab (1 cell)
 Lihat `colab_bootstrap.py`. Intinya:
 ```
-%pip install -U git+https://github.com/VB-7/Ai-text2text-colab.git
-from airi import init_models, airi
+!pip install -q llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121/
+!pip install -q -U transformers huggingface_hub Pillow psutil markdown bleach
+!pip install -q -U --no-deps git+https://github.com/VB-7/Ai-text2text-colab.git
+from airi import init_models, launch_ui
 init_models("gemma12b")
-print(airi("halo"))
+launch_ui()
 ```
+`llama-cpp` wajib via wheel cu121 (biar cepet). Baris `xformers/diffusers`-mu gak perlu buat chat ini.
 
 ## Pilih model dasar
-Di `airi.py` → `MODEL_PRESETS`:
-- `gemma12b` — siap jalan (file + mmproj sudah diisi)
-- `qwen9b` — repo sudah diisi, nama file GGUF auto-detect (Q4_K_M)
-- `gemma_e4b / gemma_e2b / qwen2b / qwen4b / qwenvl8b` — isi `repo` dulu (kirim list Drive biar aku isikan)
-
-Ganti via `init_models("qwen9b")` atau env `AIRI_MODEL`.
+`init_models("gemma12b" | "gemma_e4b" | "gemma_e2b" | "qwen9b" | "qwen4b" | "qwen2b")` atau env `AIRI_MODEL`. File + mmproj + n_ctx + handler sudah diisi per model di `MODEL_PRESETS`.
 
 ## Aturan
 - Model 100% HuggingFace. Drive HANYA `Save/History_AI_V2/` (history + state).
