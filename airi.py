@@ -459,9 +459,9 @@ _UI_HTML = """
 #airi-log p{margin:4px 0}
 #airi-log a{color:#7cc4ff}
 </style>
-<div id="airi-ui" style="font-family:system-ui;background:#0b0e14;color:#e8ecf3;border:1px solid #222a3a;border-radius:14px;padding:12px;max-width:720px">
+<div id="airi-ui" style="font-family:system-ui;background:#0b0e14;color:#e8ecf3;border:1px solid #222a3a;border-radius:14px;padding:12px;width:100%;max-width:100%;box-sizing:border-box;font-size:16px">
 <div style="display:flex;gap:8px;margin-bottom:8px">
-<select id="airi-model" style="flex:1;min-height:44px;background:#162032;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px">
+<select id="airi-model" style="flex:1;min-height:48px;font-size:16px;background:#162032;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px">
 <option value="gemma12b">Gemma 12B</option>
 <option value="gemma_e4b">Gemma E4B</option>
 <option value="gemma_e2b">Gemma E2B</option>
@@ -469,16 +469,16 @@ _UI_HTML = """
 <option value="qwen4b">Qwen 4B</option>
 <option value="qwen2b">Qwen 2B</option>
 </select>
-<button id="airi-clear" style="min-height:44px;background:#3a1620;color:#fff;border:1px solid #5a2c3a;border-radius:10px;padding:8px 12px">Hapus</button>
+<button id="airi-clear" style="min-height:48px;font-size:16px;background:#3a1620;color:#fff;border:1px solid #5a2c3a;border-radius:10px;padding:8px 12px">Hapus</button>
 </div>
-<div id="airi-status" style="font-size:12px;color:#9aa6bd;margin-bottom:8px">siap</div>
-<div id="airi-log" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto;margin-bottom:8px"></div>
+<div id="airi-status" style="font-size:14px;color:#9aa6bd;margin-bottom:8px">siap</div>
+<div id="airi-log" style="display:flex;flex-direction:column;gap:8px;max-height:60vh;min-height:300px;overflow:auto;margin-bottom:8px"></div>
 <div id="airi-thumbs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
 <div style="display:flex;gap:8px">
 <input id="airi-file" type="file" accept="image/*" multiple style="display:none">
-<button id="airi-imgbtn" style="min-height:44px;background:#162032;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px 12px">Gambar</button>
-<input id="airi-text" placeholder="Ketik pesan..." style="flex:1;min-height:44px;background:#0f1522;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px">
-<button id="airi-send" style="min-height:44px;background:#2563eb;color:#fff;border:0;border-radius:10px;padding:8px 16px;font-weight:600">Kirim</button>
+<button id="airi-imgbtn" style="min-height:48px;font-size:16px;background:#162032;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px 12px">Gambar</button>
+<input id="airi-text" placeholder="Ketik pesan..." style="flex:1;min-width:0;min-height:48px;font-size:16px;background:#0f1522;color:#fff;border:1px solid #2c3a55;border-radius:10px;padding:8px">
+<button id="airi-send" style="min-height:48px;font-size:16px;background:#2563eb;color:#fff;border:0;border-radius:10px;padding:8px 16px;font-weight:600">Kirim</button>
 </div>
 </div>
 <script>
@@ -492,8 +492,8 @@ function bubble(role, html){
   var log = document.getElementById('airi-log');
   var d = document.createElement('div');
   d.style.cssText = role === 'user'
-    ? 'align-self:flex-end;background:#2563eb;color:#fff;border-radius:12px;padding:8px 12px;max-width:85%;word-break:break-word'
-    : 'align-self:flex-start;background:#162032;color:#e8ecf3;border:1px solid #2c3a55;border-radius:12px;padding:8px 12px;max-width:85%;word-break:break-word';
+    ? 'align-self:flex-end;background:#2563eb;color:#fff;border-radius:12px;padding:10px 14px;max-width:92%;word-break:break-word;font-size:16px'
+    : 'align-self:flex-start;background:#162032;color:#e8ecf3;border:1px solid #2c3a55;border-radius:12px;padding:10px 14px;max-width:92%;word-break:break-word;font-size:16px';
   d.innerHTML = html;
   log.appendChild(d); log.scrollTop = log.scrollHeight;
   return d;
