@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airi-norvex"
-version = "0.2.1"
+version = "0.2.2"
 description = "AIRI chatbot core - HF-only models, Drive only for history/state"
 requires-python = ">=3.10"
 # NOTE: llama-cpp-python TIDAK di-list di sini — install manual via wheel CUDA

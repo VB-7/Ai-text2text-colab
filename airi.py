@@ -90,8 +90,8 @@ def _resolve_token():
     try:
         from google.colab import userdata
         t = userdata.get('HF_TOKEN')
-        if t:
-            return t
+        if t and t.strip():
+            return t.strip()
     except Exception:
         pass
     try:
@@ -104,7 +104,7 @@ def _resolve_token():
         pass
     if HF_TOKEN_HARDCODE.strip():
         return HF_TOKEN_HARDCODE.strip()
-    return os.environ.get("HF_TOKEN", "")
+    return os.environ.get("HF_TOKEN") or None
 
 
 def list_model_files(repo):
