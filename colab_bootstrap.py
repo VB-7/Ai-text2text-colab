@@ -2,8 +2,8 @@
 from google.colab import drive
 drive.mount('/content/drive')
 
-# llama-cpp prebuilt CUDA (biar cepet, jangan dari source)
-!pip install -q llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121/
+# llama-cpp prebuilt CUDA 13 (sesuaikan dgn torch Colab yg cu130)
+!pip install -q llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130/
 # dependensi pendamping
 !pip install -q -U transformers huggingface_hub Pillow psutil markdown bleach
 # paket airi (tanpa deps, sudah di-install di atas)
