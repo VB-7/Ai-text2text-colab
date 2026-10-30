@@ -558,5 +558,5 @@ def launch_gradio(share=False):
         setting_btn.click(fn=_toggle, inputs=set_state, outputs=[set_state, settings])
         save_btn.click(fn=_save_prompt, inputs=prompt_box, outputs=save_status)
         demo.queue()
-    demo.launch(share=share)
+    demo.launch(share=True)
     return demo
