@@ -3,7 +3,7 @@
 Upload isi folder `v2/` ini sebagai repo GitHub (root repo = folder ini).
 
 ## Pakai di Colab (1 cell)
-Lihat `colab_bootstrap.py`. Intinya:
+Lihat `colab_bootstrap.py`. Urutan penting — JANGAN `pip install git+...` polos (nanti llama-cpp ke-build dari source, lama + CPU-only):
 ```
 !pip install -q llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121/
 !pip install -q -U transformers huggingface_hub Pillow psutil markdown bleach
