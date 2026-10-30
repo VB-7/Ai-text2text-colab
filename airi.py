@@ -317,10 +317,38 @@ def recall(user_input, hist, threshold=0.62):
 
 
 def get_prompt():
+    t = load_system_prompt()
+    if t:
+        return t
     c = globals().get('CHATBOT', "")
     if isinstance(c, str) and c.strip() and c.strip() not in ('...', '"..."'):
         return c
-    return "Kamu adalah Airi, asisten riset pintar."
+    return DEFAULT_PROMPT
+
+
+PROMPT_PATH = os.path.join(SAVE_DIR, "system_prompt.txt")
+DEFAULT_PROMPT = "Kamu adalah Airi, asisten riset pintar."
+
+
+def load_system_prompt():
+    try:
+        if os.path.exists(PROMPT_PATH):
+            t = open(PROMPT_PATH, encoding='utf-8').read().strip()
+            if t:
+                return t
+    except Exception:
+        pass
+    return ""
+
+
+def save_system_prompt(text):
+    try:
+        ensure_drive()
+        with open(PROMPT_PATH, 'w', encoding='utf-8') as f:
+            f.write(text or "")
+        return True
+    except Exception:
+        return False
 
 
 def _clean_path(f):
@@ -437,16 +465,6 @@ def clear_history():
     return []
 
 
-_MODEL_LABELS = [
-    ("Gemma 12B", "gemma12b"),
-    ("Gemma E4B", "gemma_e4b"),
-    ("Gemma E2B", "gemma_e2b"),
-    ("Qwen 9B", "qwen9b"),
-    ("Qwen 4B", "qwen4b"),
-    ("Qwen 2B", "qwen2b"),
-]
-
-
 def _gradio_history():
     out = []
     for m in CHAT_HISTORY:
@@ -460,23 +478,46 @@ def _gradio_history():
 
 
 def launch_gradio(share=False):
-    """Wajah Gradio — responsif di HP. Ganti model via dropdown, kirim teks + gambar."""
+    """Wajah Gradio. Kirim HANYA via tombol (Enter = baris baru). Setting = laci system prompt."""
     import gradio as gr
     with gr.Blocks(title="Airi") as demo:
-        gr.Markdown("# Airi")
+        gr.Markdown(f"# Airi ({ACTIVE_MODEL})")
         with gr.Row():
-            model_dd = gr.Dropdown(choices=_MODEL_LABELS, value=ACTIVE_MODEL, label="Model")
-            clear_btn = gr.Button("Hapus riwayat", variant="stop")
-        status_md = gr.Markdown(f"Model aktif: **{ACTIVE_MODEL}**")
+            setting_btn = gr.Button("⚙ Setting", scale=1)
+            clear_btn = gr.Button("Hapus riwayat", variant="stop", scale=1)
+        settings = gr.Group(visible=False)
+        with settings:
+            prompt_box = gr.Textbox(value=load_system_prompt() or DEFAULT_PROMPT,
+                                    label="System prompt", lines=6, max_lines=12)
+            save_btn = gr.Button("Simpan prompt", variant="primary")
+            save_status = gr.Markdown("")
         chat = gr.Chatbot(value=_gradio_history(), label="Chat", height=500, render_markdown=True)
         with gr.Row():
-            msg = gr.MultimodalTextbox(placeholder="Ketik pesan...",
-                                       file_count="multiple", file_types=["image"], scale=7)
+            msg = gr.MultimodalTextbox(placeholder="Ketik pesan... (Enter = baris baru)",
+                                       file_count="multiple", file_types=["image"],
+                                       scale=7, elem_id="airi-msg")
             send_btn = gr.Button("Kirim", variant="primary", scale=1)
-
-        def _switch(name):
-            init_models(name)
-            return f"Model aktif: **{name}**"
+        gr.HTML("""<script>
+(function(){
+  function bind(){
+    var ta = document.querySelector('#airi-msg textarea');
+    if(!ta || ta._airiBound){ return; }
+    ta._airiBound = true;
+    ta.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        e.stopPropagation();
+        var s = ta.selectionStart, en = ta.selectionEnd;
+        ta.value = ta.value.slice(0, s) + '\\n' + ta.value.slice(en);
+        ta.selectionStart = ta.selectionEnd = s + 1;
+        ta.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+    }, true);
+  }
+  new MutationObserver(bind).observe(document.body, {childList: true, subtree: true});
+  bind();
+})();
+</script>""")
 
         def _respond(data, hist):
             txt = ""
@@ -504,10 +545,18 @@ def launch_gradio(share=False):
             clear_history()
             return []
 
-        model_dd.change(fn=_switch, inputs=model_dd, outputs=status_md)
+        def _toggle(opened):
+            opened = not opened
+            return opened, gr.update(visible=opened)
+
+        def _save_prompt(t):
+            return "tersimpan ✓" if save_system_prompt(t or "") else "[gagal simpan]"
+
         send_btn.click(fn=_respond, inputs=[msg, chat], outputs=[msg, chat])
-        msg.submit(fn=_respond, inputs=[msg, chat], outputs=[msg, chat])
         clear_btn.click(fn=_clear, outputs=chat)
+        set_state = gr.State(False)
+        setting_btn.click(fn=_toggle, inputs=set_state, outputs=[set_state, settings])
+        save_btn.click(fn=_save_prompt, inputs=prompt_box, outputs=save_status)
         demo.queue()
     demo.launch(share=share)
     return demo

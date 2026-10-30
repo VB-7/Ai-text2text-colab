@@ -1,7 +1,7 @@
 huggingface_hub>=0.23
 transformers>=4.40
 llama-cpp-python>=0.3
-Pillow>=10
+Pillow>=10,<13
 numpy>=1.26
 torch>=2.2
 psutil>=5.9

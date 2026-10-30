@@ -10,11 +10,13 @@ Buat chat AI di Colab pake model uncensored-nya HauhauCS. Model ngambil dari Hug
 from google.colab import drive
 drive.mount('/content/drive')
 !pip install -q llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130/
-!pip install -q -U transformers huggingface_hub Pillow psutil gradio
+!pip install -q -U transformers huggingface_hub "Pillow>=10,<13" psutil gradio
 !pip install -q -U --no-deps git+https://github.com/VB-7/Ai-text2text-colab.git
 ```
 
 Urutan install jangan dibalik — `llama-cpp` harus dari wheel CUDA, kalau dari source nunggunya lama + jadinya CPU-only.
+
+> Habis Cell 1, **wajib restart runtime** (Runtime > Restart session), baru run Cell 2. Kalau nggak, paket lama masih nyangkut di memori.
 
 **Cell 2 — run (boleh di-run ulang kapan aja):**
 

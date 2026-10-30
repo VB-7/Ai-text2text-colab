@@ -9,9 +9,11 @@ drive.mount('/content/drive')
 # llama-cpp prebuilt CUDA 13 (sesuaikan dgn torch Colab yg cu130)
 !pip install -q llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130/
 # dependensi pendamping (+gradio buat wajah)
-!pip install -q -U transformers huggingface_hub Pillow psutil gradio
+!pip install -q -U transformers huggingface_hub "Pillow>=10,<13" psutil gradio
 # paket airi (tanpa deps, sudah di-install di atas)
 !pip install -q -U --no-deps git+https://github.com/VB-7/Ai-text2text-colab.git
+
+# >>> WAJIB: Restart runtime (Runtime > Restart session), baru run CELL 2 <<<
 
 # ================= CELL 2: RUN (boleh di-run ulang kapan aja) =================
 from airi import init_models, launch_gradio
