@@ -1,10 +1,12 @@
-# AIRI v2 — pip-installable, pro
+# Airi — chatbot Colab
 
-Upload isi folder `v2/` ini sebagai repo GitHub (root repo = folder ini).
+Buat chat AI di Colab pake model uncensored-nya HauhauCS. Model ngambil dari HuggingFace, Drive cuma buat nyimpen history chat.
 
-## Pakai di Colab (1 cell)
-Lihat `colab_bootstrap.py`. Urutan penting — JANGAN `pip install git+...` polos (nanti llama-cpp ke-build dari source, lama + CPU-only):
-```
+## Cara pakai (1 cell)
+
+```python
+from google.colab import drive
+drive.mount('/content/drive')
 !pip install -q llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121/
 !pip install -q -U transformers huggingface_hub Pillow psutil markdown bleach
 !pip install -q -U --no-deps git+https://github.com/VB-7/Ai-text2text-colab.git
@@ -12,12 +14,19 @@ from airi import init_models, launch_ui
 init_models("gemma12b")
 launch_ui()
 ```
-`llama-cpp` wajib via wheel cu121 (biar cepet). Baris `xformers/diffusers`-mu gak perlu buat chat ini.
 
-## Pilih model dasar
-`init_models("gemma12b" | "gemma_e4b" | "gemma_e2b" | "qwen9b" | "qwen4b" | "qwen2b")` atau env `AIRI_MODEL`. File + mmproj + n_ctx + handler sudah diisi per model di `MODEL_PRESETS`.
+Urutan install jangan dibalik — `llama-cpp` harus dari wheel CUDA, kalau dari source nunggunya lama + jadinya CPU-only.
 
-## Aturan
-- Model 100% HuggingFace. Drive HANYA `Save/History_AI_V2/` (history + state).
-- Param LLM permanen di kode. Token: Secrets → `Secrets/hf_token.txt` → hardcode (Colab only).
-- `airi(text)` full, `airi_stream(text)` yield buat efek mengetik.
+## Ganti model
+
+Tinggal ganti nama di `init_models`:
+
+`gemma12b` / `gemma_e4b` / `gemma_e2b` / `qwen9b` / `qwen4b` / `qwen2b`
+
+File GGUF + mmproj + setting context per model udah diatur di `MODEL_PRESETS` dalam `airi.py`.
+
+## Catatan
+
+- Token HF cuma perlu kalau modelnya gated. Repo yang dipake sekarang publik, jadi kosong pun jalan.
+- Param LLM dikunci di kode, gak ada slider.
+- History kesimpen di Drive (`Save/History_AI_V2/`), jadi sesi berikutnya masih nyambung + ada ingatan RAG.
