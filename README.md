@@ -5,7 +5,7 @@ Upload isi folder `v2/` ini sebagai repo GitHub (root repo = folder ini).
 ## Pakai di Colab (1 cell)
 Lihat `colab_bootstrap.py`. Intinya:
 ```
-%pip install -U git+https://github.com/<GITHUB_KAMU>/airi.git
+%pip install -U git+https://github.com/VB-7/Ai-text2text-colab.git
 from airi import init_models, airi
 init_models("gemma12b")
 print(airi("halo"))
