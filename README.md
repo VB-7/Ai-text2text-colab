@@ -1,6 +1,8 @@
-# Airi — chatbot Colab
+# Airi — chatbot Colab (Gemma4 12B, tanpa pilihan)
 
-Buat chat AI di Colab pake model uncensored-nya HauhauCS. Model ngambil dari HuggingFace, Drive cuma buat nyimpen history chat.
+Buat chat AI di Colab pake Gemma4 12B uncensored-nya HauhauCS. Model ngambil dari HuggingFace, Drive cuma buat nyimpen history chat.
+
+Gak ada pilihan model. Sengaja dikunci satu biar simpel.
 
 ## Cara pakai (2 cell)
 
@@ -22,7 +24,7 @@ Urutan install jangan dibalik — `llama-cpp` harus dari wheel CUDA, kalau dari 
 
 ```python
 from airi import init_models, launch_gradio
-init_models("gemma12b")
+init_models()  # langsung Gemma4 12B
 launch_gradio()
 ```
 
@@ -34,13 +36,14 @@ launch_gradio()
 
 Habis itu run ulang Cell 2. Cell 1 gak perlu diulang.
 
-## Ganti model
+## Model
 
-Tinggal ganti nama di `init_models`:
+- Repo: `HauhauCS/Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced`
+- File: `Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf`
+- mmproj: `mmproj-Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf`
+- n_ctx: `157286`, `swa_full=False`, `flash_attn=True`
 
-`gemma12b` / `gemma_e4b` / `gemma_e2b` / `qwen9b` / `qwen4b` / `qwen2b`
-
-File GGUF + mmproj + setting context per model udah diatur di `MODEL_PRESETS` dalam `airi.py`.
+File GGUF + mmproj + setting context udah dikunci di `airi.py`.
 
 ## Catatan
 
