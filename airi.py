@@ -413,7 +413,7 @@ def _gradio_history():
     return out
 
 
-def launch_gradio(share=False):
+def launch_gradio(share=True):
     """Wajah Gradio. Kirim HANYA via tombol (Enter = baris baru). Setting = laci system prompt."""
     import gradio as gr
     with gr.Blocks(title="Airi") as demo:
@@ -494,5 +494,5 @@ def launch_gradio(share=False):
         setting_btn.click(fn=_toggle, inputs=set_state, outputs=[set_state, settings])
         save_btn.click(fn=_save_prompt, inputs=prompt_box, outputs=save_status)
         demo.queue()
-    demo.launch(share=share, show_api=False)
+    demo.launch(share=share)
     return demo
