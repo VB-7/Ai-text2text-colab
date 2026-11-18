@@ -1,6 +1,5 @@
-# 1 CELL Colab — Airi V2
-# Dipisah 2 cell biar gak reinstall deps terus.
-# Cell lama (1 cell penuh) pensiun — pakai 2 cell di bawah.
+# 2 CELL Colab — Airi (Gemma4 12B, tanpa pilihan)
+# Cell 1 install sekali per runtime, Cell 2 run.
 
 # ================= CELL 1: INSTALL (sekali per runtime) =================
 from google.colab import drive
@@ -18,8 +17,7 @@ drive.mount('/content/drive')
 # ================= CELL 2: RUN (boleh di-run ulang kapan aja) =================
 from airi import init_models, launch_gradio
 
-# pilih model dasar: "gemma12b" / "gemma_e4b" / "gemma_e2b" / "qwen9b" / "qwen4b" / "qwen2b"
-init_models("gemma12b")
+init_models()  # langsung Gemma4 12B, tanpa pilih-pilih
 launch_gradio()
 
 # ============ UPDATE AIRI (hanya kalau airi.py di GitHub berubah) ============
