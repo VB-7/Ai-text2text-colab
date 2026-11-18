@@ -1,12 +1,13 @@
 # AIRI core - modul pip-installable (import airi)
-# Model dari HF saja. Drive cuma history/state.
-# Ganti model cukup: init_models("qwen9b") / ("gemma12b") / dst.
+# Model TUNGGAL: Gemma4 12B dari HF. Drive cuma history/state.
+# Sengaja TANPA pilihan model biar simpel. Tinggal: init_models() -> launch_gradio()
 
 import os
 import json
 import base64
 import gc
 import time
+import logging
 import warnings
 from io import BytesIO
 
@@ -17,54 +18,19 @@ import PIL.Image as PILImage
 
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True,max_split_size_mb:128")
 warnings.filterwarnings("ignore")
+for _ln in ("huggingface_hub", "transformers", "torchvision", "gradio"):
+    try:
+        logging.getLogger(_ln).setLevel(logging.ERROR)
+    except Exception:
+        pass
 
-MODEL_PRESETS = {
-    "gemma12b": {
-        "repo": "HauhauCS/Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced",
-        "file": "Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf",
-        "mmproj": "mmproj-Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf",
-        "handler": "gemma4",
-        "n_ctx": 157286,  # 60% dari 256K
-        "swa_full": False,
-    },
-    "gemma_e4b": {
-        "repo": "HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive",
-        "file": "Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf",
-        "mmproj": "mmproj-Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-f16.gguf",
-        "handler": "gemma4",
-        "n_ctx": 131072,  # full n_ctx
-        "swa_full": False,
-    },
-    "gemma_e2b": {
-        "repo": "HauhauCS/Gemma-4-E2B-Uncensored-HauhauCS-Aggressive",
-        "file": "Gemma-4-E2B-Uncensored-HauhauCS-Aggressive-Q8_K_P.gguf",
-        "mmproj": "mmproj-Gemma-4-E2B-Uncensored-HauhauCS-Aggressive-f16.gguf",
-        "handler": "gemma4",
-        "n_ctx": 131072,  # full n_ctx
-        "swa_full": False,
-    },
-    "qwen9b": {
-        "repo": "HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive",
-        "file": "Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf",
-        "mmproj": "mmproj-Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
-        "handler": "qwen25vl",  # Qwen-VL family; belum tested di 3.5, fallback: MTMDChatHandler
-        "n_ctx": 170393,  # 65% dari 262K
-    },
-    "qwen2b": {
-        "repo": "HauhauCS/Qwen3.5-2B-Uncensored-HauhauCS-Aggressive",
-        "file": "Qwen3.5-2B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
-        "mmproj": "mmproj-Qwen3.5-2B-Uncensored-HauhauCS-Aggressive-f16.gguf",
-        "handler": "qwen25vl",
-        "n_ctx": 262144,  # full n_ctx
-    },
-    "qwen4b": {
-        "repo": "HauhauCS/Qwen3.5-4B-Uncensored-HauhauCS-Aggressive",
-        "file": "Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-Q8_0.gguf",
-        "mmproj": "mmproj-Qwen3.5-4B-Uncensored-HauhauCS-Aggressive-BF16.gguf",
-        "handler": "qwen25vl",
-        "n_ctx": 183500,  # 70% dari 262K
-    },
-}
+# ===== MODEL TUNGGAL (jangan diubah-ubah) =====
+MODEL_LABEL = "gemma4-12b"
+MODEL_REPO = "HauhauCS/Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced"
+MODEL_FILE = "Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf"
+MODEL_MMPROJ = "mmproj-Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf"
+MODEL_N_CTX = 157286  # 60% dari 256K, aman buat VRAM Colab
+MODEL_SWA_FULL = False
 
 EMBED_ID = "BAAI/bge-base-en-v1.5"
 RERANK_ID = "BAAI/bge-reranker-base"
@@ -73,7 +39,6 @@ ROOT_DRIVE = "/content/drive/MyDrive/Ai_Norvex/"
 SAVE_DIR = os.path.join(ROOT_DRIVE, "Save/History_AI_V2")
 SAVE_PATH = os.path.join(SAVE_DIR, "airi_v2.json")
 
-ACTIVE_MODEL = "gemma12b"
 HF_TOKEN_HARDCODE = ""  # isi di Colab aja, jangan commit berisi
 
 # PARAM PERMANEN: temp 0.75, top_p 0.85, top_k 20, min_p 0.05, repeat 1.0, presence 0.5, max 5024
@@ -105,36 +70,6 @@ def _resolve_token():
     if HF_TOKEN_HARDCODE.strip():
         return HF_TOKEN_HARDCODE.strip()
     return os.environ.get("HF_TOKEN") or None
-
-
-def list_model_files(repo):
-    from huggingface_hub import HfApi
-    api = HfApi(token=_resolve_token() or None)
-    return [f for f in api.list_repo_files(repo_id=repo)]
-
-
-def _auto_pick(files, must_contain=("Q4_K_M", ".gguf"), skip=("mmproj",)):
-    c = [f for f in files if all(m in f for m in must_contain) and not any(s in f.lower() for s in skip)]
-    if c:
-        return sorted(c)[0]
-    g = [f for f in files if f.endswith(".gguf") and not any(s in f.lower() for s in skip)]
-    return sorted(g)[0] if g else None
-
-
-def _resolve_preset(name):
-    p = MODEL_PRESETS.get(name)
-    if not p or not p.get("repo"):
-        raise ValueError(f"Preset '{name}' belum diisi repo-nya. Isi dulu di MODEL_PRESETS.")
-    repo, f, m = p["repo"], p.get("file"), p.get("mmproj")
-    need_mm = p.get("handler") in ("gemma4", "qwen25vl")
-    if f is None or (m is None and need_mm):
-        files = list_model_files(repo)
-        if f is None:
-            f = _auto_pick(files)
-        if m is None and need_mm:
-            mm = [x for x in files if "mmproj" in x.lower() and x.endswith(".gguf")]
-            m = sorted(mm)[0] if mm else None
-    return repo, f, m, p.get("handler")
 
 
 def log_mem(tag):
@@ -174,39 +109,34 @@ def save_history():
         pass
 
 
-def init_models(name=None):
-    global _llm, _embed_tok, _embed_mod, _rerank_tok, _rerank_mod, ACTIVE_MODEL
+def init_models(_ignored=None):
+    """Nyalakan Gemma4 12B + embedding + reranker. Tanpa argumen, tanpa pilihan."""
+    global _llm, _embed_tok, _embed_mod, _rerank_tok, _rerank_mod
     from huggingface_hub import hf_hub_download
-    name = name or os.environ.get("AIRI_MODEL", ACTIVE_MODEL)
     ensure_drive()
     load_history()
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     t0 = time.time()
-    if _llm is None or ACTIVE_MODEL != name:
-        repo, f, m, handler = _resolve_preset(name)
+    if _llm is None:
+        print(f"Load {MODEL_LABEL}: {MODEL_REPO}", flush=True)
         tok = _resolve_token()
-        mp = hf_hub_download(repo_id=repo, filename=f, token=tok)
-        pp = MODEL_PRESETS.get(name, {})
-        kw = dict(model_path=mp, n_ctx=pp.get("n_ctx", 131072), n_gpu_layers=-1, n_batch=1024,
-                  n_ubatch=512, swa_full=pp.get("swa_full", False), flash_attn=True, verbose=False)
-        if handler == "gemma4" and m:
+        mp = hf_hub_download(repo_id=MODEL_REPO, filename=MODEL_FILE, token=tok)
+        try:
+            mm = hf_hub_download(repo_id=MODEL_REPO, filename=MODEL_MMPROJ, token=tok)
+        except Exception as e:
+            print(f"Peringatan: mmproj gagal ({e}), lanjut teks-only.", flush=True)
+            mm = None
+        kw = dict(model_path=mp, n_ctx=MODEL_N_CTX, n_gpu_layers=-1, n_batch=1024,
+                  n_ubatch=512, swa_full=MODEL_SWA_FULL, flash_attn=True, verbose=False)
+        if mm:
             from llama_cpp.llama_chat_format import Gemma4ChatHandler
-            mm = hf_hub_download(repo_id=repo, filename=m, token=tok)
             kw["chat_handler"] = Gemma4ChatHandler(clip_model_path=mm, verbose=False)
-        elif handler == "qwen25vl" and m:
-            from llama_cpp.llama_chat_format import Qwen25VLChatHandler
-            mm = hf_hub_download(repo_id=repo, filename=m, token=tok)
-            kw["chat_handler"] = Qwen25VLChatHandler(clip_model_path=mm, verbose=False)
-        elif handler == "qwen25vl":
-            print("Peringatan: mmproj tidak ketemu, jalan teks-only.", flush=True)
-            kw["chat_format"] = "qwen"
-        elif handler is None:
+        else:
             kw["chat_format"] = "qwen"
         from llama_cpp import Llama
         _llm = Llama(**kw)
-        ACTIVE_MODEL = name
     if _embed_mod is None:
         from transformers import AutoModel, AutoTokenizer
         tok = _resolve_token()
@@ -217,8 +147,14 @@ def init_models(name=None):
         tok = _resolve_token()
         _rerank_tok = AutoTokenizer.from_pretrained(RERANK_ID, token=tok, trust_remote_code=False)
         _rerank_mod = AutoModelForSequenceClassification.from_pretrained(RERANK_ID, token=tok, trust_remote_code=False).to("cpu").eval()
-    log_mem(f"ready [{ACTIVE_MODEL}] {time.time() - t0:.0f}s")
-    return ACTIVE_MODEL
+    log_mem(f"ready [{MODEL_LABEL}] {time.time() - t0:.0f}s")
+    return MODEL_LABEL
+
+
+def pick_model():
+    """Kompatibilitas lama: dulu ada pilihan, sekarang selalu gemma4-12b."""
+    print(f"Model dikunci: {MODEL_LABEL} (tanpa pilihan).", flush=True)
+    return MODEL_LABEL
 
 
 def content_to_text(c):
@@ -481,7 +417,7 @@ def launch_gradio(share=False):
     """Wajah Gradio. Kirim HANYA via tombol (Enter = baris baru). Setting = laci system prompt."""
     import gradio as gr
     with gr.Blocks(title="Airi") as demo:
-        gr.Markdown(f"# Airi ({ACTIVE_MODEL})")
+        gr.Markdown(f"# Airi ({MODEL_LABEL})")
         with gr.Row():
             setting_btn = gr.Button("⚙ Setting", scale=1)
             clear_btn = gr.Button("Hapus riwayat", variant="stop", scale=1)
@@ -558,5 +494,5 @@ def launch_gradio(share=False):
         setting_btn.click(fn=_toggle, inputs=set_state, outputs=[set_state, settings])
         save_btn.click(fn=_save_prompt, inputs=prompt_box, outputs=save_status)
         demo.queue()
-    demo.launch(share=True)
+    demo.launch(share=share, show_api=False)
     return demo
