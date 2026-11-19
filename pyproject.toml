@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airi-norvex"
-version = "0.5.0"
+version = "0.5.1"
 description = "AIRI Colab: Generate Text (Gemma4 12B) + Generate Image (SDXL+E4B), pilih mode di Cell 2"
 requires-python = ">=3.10"
 # NOTE: llama-cpp-python TIDAK di-list di sini — install manual via wheel CUDA
