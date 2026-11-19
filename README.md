@@ -1,3 +1,5 @@
+[![Buka di Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/VB-7/Ai-text2text-colab/blob/main/Airi.ipynb)
+
 # Airi — chatbot + image Colab (pilih mode di Cell 2)
 
 Satu Colab untuk dua kebutuhan. Model ngambil dari HuggingFace, Drive cuma buat history/state + backup gambar.
