@@ -911,6 +911,9 @@ def launch_gradio(share=True):
                               seed_n, batch_s, llm_c, delllm_c, lora_c, gd_c, loc_t],
                       outputs=[gal, status_box, final_box])
         stop_btn.click(fn=request_stop, outputs=[status_box])
-        demo.queue(max_threads=2)
+        try:
+            demo.queue(max_threads=2)  # Stop tetap responsif walau render jalan
+        except TypeError:
+            demo.queue()  # Gradio lama/baru tanpa max_threads
     demo.launch(share=share)
     return demo
