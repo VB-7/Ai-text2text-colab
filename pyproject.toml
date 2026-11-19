@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airi-norvex"
-version = "0.4.1"
-description = "AIRI chatbot core - Gemma4 12B tunggal, HF-only, Drive hanya history/state"
+version = "0.5.0"
+description = "AIRI Colab: Generate Text (Gemma4 12B) + Generate Image (SDXL+E4B), pilih mode di Cell 2"
 requires-python = ">=3.10"
 # NOTE: llama-cpp-python TIDAK di-list di sini — install manual via wheel CUDA
 # (cu130, sesuaikan dgn torch Colab) biar cepet + ada GPU. Lihat colab_bootstrap.py / README.
@@ -20,4 +20,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["airi"]
+py-modules = ["airi", "airi_image"]
